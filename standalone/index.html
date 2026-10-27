@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartScan AI - Smart Scan Strategy for Electronic Warfare</title>
+  <meta name="description" content="Educational signal-analysis prototype that scores synthetic electromagnetic samples with a transparent rule-based engine and prioritises them for human review.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --background: #0b1428;
+      --foreground: #f1f5f9;
+      --card: #0f1d38;
+      --card-foreground: #f1f5f9;
+      --popover: #0d1a33;
+      --popover-foreground: #f1f5f9;
+      --primary: #38bdf8;
+      --primary-foreground: #020817;
+      --secondary: #172554;
+      --secondary-foreground: #f8fafc;
+      --muted: #132240;
+      --muted-foreground: #94a3b8;
+      --border: #1e3358;
+      --input: #1e3358;
+      --ring: #38bdf8;
+      --sidebar: #070e1e;
+      --sidebar-border: #152747;
+      --sidebar-accent: #0f2040;
+      --high: #f43f5e;
+      --medium: #f59e0b;
+      --low: #10b981;
+    }
+    body {
+      background-color: var(--background);
+      color: var(--foreground);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #0b1428;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #1e3358;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0b1428] text-slate-100">
+  <div class="flex min-h-screen">
+    <!-- Desktop Sidebar -->
+    <aside class="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-[#152747] bg-[#070e1e] lg:flex">
+      <div class="flex items-center gap-3 px-5 py-5">
+        <span class="flex size-9 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400 ring-1 ring-sky-500/30">
+          <i data-lucide="radar" class="size-5"></i>
+        </span>
+        <span class="flex flex-col leading-tight">
+          <span class="font-semibold tracking-tight text-white">SmartScan AI</span>
+          <span class="text-xs text-slate-400">Smart Scan Strategy</span>
+        </span>
+      </div>
+
+      <nav aria-label="Main" class="px-3 flex-1 overflow-y-auto">
+        <ul class="flex flex-col gap-1" id="nav-list">
+          <li>
+            <button data-tab="dashboard" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors bg-[#0f2040] text-sky-400">
+              <i data-lucide="layout-dashboard" class="size-4"></i>Dashboard
+            </button>
+          </li>
+          <li>
+            <button data-tab="analysis" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-slate-400 hover:bg-[#0f2040]/60 hover:text-white">
+              <i data-lucide="activity" class="size-4"></i>Signal Analysis
+            </button>
+          </li>
+          <li>
+            <button data-tab="queue" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-slate-400 hover:bg-[#0f2040]/60 hover:text-white">
+              <i data-lucide="list-ordered" class="size-4"></i>Priority Queue
+            </button>
+          </li>
+          <li>
+            <button data-tab="comparison" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-slate-400 hover:bg-[#0f2040]/60 hover:text-white">
+              <i data-lucide="scale" class="size-4"></i>Strategy Comparison
+            </button>
+          </li>
+          <li>
+            <button data-tab="about" class="nav-btn flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-slate-400 hover:bg-[#0f2040]/60 hover:text-white">
+              <i data-lucide="info" class="size-4"></i>About
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="p-4 border-t border-[#152747] text-[11px] text-slate-400 leading-normal">
+        SmartScan AI Prototype<br>
+        Synthetic EW Dataset
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex flex-1 flex-col min-w-0">
+      <!-- Top Bar with Simulation Controls -->
+      <header class="sticky top-0 z-40 flex items-center justify-between border-b border-[#1e3358] bg-[#0b1428]/95 px-4 py-3 backdrop-blur-md md:px-8">
+        <div class="lg:hidden flex items-center gap-2">
+          <i data-lucide="radar" class="size-5 text-sky-400"></i>
+          <span class="font-semibold text-sm">SmartScan AI</span>
+        </div>
+
+        <div class="flex flex-1 flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          <div class="flex items-center gap-3 text-xs text-slate-400" aria-live="polite">
+            <span class="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wider text-amber-400">
+              SIMULATED DATA
+            </span>
+            <span class="flex items-center gap-1.5">
+              <span id="sim-status-dot" class="size-2 rounded-full bg-slate-500"></span>
+              <span id="sim-status-text">Paused</span>
+            </span>
+            <span class="hidden font-mono sm:inline" id="sim-meta-text">
+              Cycle 24 · 48 samples · seed 2026
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="btn-toggle-sim" class="inline-flex items-center gap-1.5 bg-sky-500 text-slate-950 font-semibold px-3 py-1.5 rounded-md text-xs hover:bg-sky-400 transition-colors cursor-pointer">
+              <i data-lucide="play" class="size-3.5 fill-current"></i>
+              <span id="btn-toggle-text">Start Simulation</span>
+            </button>
+            <button id="btn-new-signals" class="inline-flex items-center gap-1.5 bg-slate-800 text-slate-200 border border-[#1e3358] px-3 py-1.5 rounded-md text-xs hover:bg-slate-700 transition-colors cursor-pointer">
+              <i data-lucide="refresh-cw" class="size-3.5"></i>
+              <span class="hidden sm:inline">Generate New Signals</span>
+              <span class="sm:hidden">New</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Mobile Navigation Bar -->
+      <div class="border-b border-[#1e3358] bg-[#070e1e] p-2 flex overflow-x-auto gap-1 lg:hidden">
+        <button data-tab="dashboard" class="mobile-nav-btn px-3 py-1 text-xs rounded bg-[#0f2040] text-sky-400">Dashboard</button>
+        <button data-tab="analysis" class="mobile-nav-btn px-3 py-1 text-xs rounded text-slate-400 hover:text-white">Analysis</button>
+        <button data-tab="queue" class="mobile-nav-btn px-3 py-1 text-xs rounded text-slate-400 hover:text-white">Queue</button>
+        <button data-tab="comparison" class="mobile-nav-btn px-3 py-1 text-xs rounded text-slate-400 hover:text-white">Comparison</button>
+        <button data-tab="about" class="mobile-nav-btn px-3 py-1 text-xs rounded text-slate-400 hover:text-white">About</button>
+      </div>
+
+      <!-- Main Pages Container -->
+      <main class="flex-1 px-4 py-6 md:px-8 md:py-8">
+        <!-- ================= PAGE 1: DASHBOARD ================= -->
+        <div id="page-dashboard" class="page-view flex flex-col gap-6">
+          <div class="flex flex-col gap-2 max-w-3xl">
+            <p class="font-mono text-xs font-medium tracking-widest text-sky-400 uppercase">Mission overview</p>
+            <h1 class="text-2xl font-semibold tracking-tight md:text-3xl text-white">Signal Intelligence Dashboard</h1>
+            <p class="text-sm leading-relaxed text-slate-400">
+              Synthetic electromagnetic samples are scored by a transparent rule-based engine and ranked so a human reviewer can examine the most unusual ones first. Press Start Simulation to stream new samples.
+            </p>
+          </div>
+
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm">
+              <div class="flex flex-col gap-1">
+                <p class="text-xs text-slate-400">Simulated signals received</p>
+                <p class="font-mono text-3xl font-semibold tabular-nums text-white" id="stat-total">48</p>
+                <p class="text-xs text-slate-400" id="stat-reviewed">0 reviewed</p>
+              </div>
+              <span class="flex size-10 items-center justify-center rounded-lg ring-1 text-sky-400 bg-sky-500/10 ring-sky-500/25">
+                <i data-lucide="radio" class="size-5"></i>
+              </span>
+            </div>
+
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm">
+              <div class="flex flex-col gap-1">
+                <p class="text-xs text-slate-400">Flagged for review</p>
+                <p class="font-mono text-3xl font-semibold tabular-nums text-amber-400" id="stat-flagged">0</p>
+                <p class="text-xs text-slate-400" id="stat-flagged-pct">0% of total</p>
+              </div>
+              <span class="flex size-10 items-center justify-center rounded-lg ring-1 text-amber-400 bg-amber-500/10 ring-amber-500/25">
+                <i data-lucide="alert-triangle" class="size-5"></i>
+              </span>
+            </div>
+
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm">
+              <div class="flex flex-col gap-1">
+                <p class="text-xs text-slate-400">High-priority samples</p>
+                <p class="font-mono text-3xl font-semibold tabular-nums text-rose-400" id="stat-high">0</p>
+                <p class="text-xs text-slate-400" id="stat-high-pct">0% of total</p>
+              </div>
+              <span class="flex size-10 items-center justify-center rounded-lg ring-1 text-rose-400 bg-rose-500/10 ring-rose-500/25">
+                <i data-lucide="shield-alert" class="size-5"></i>
+              </span>
+            </div>
+
+            <div class="flex items-start justify-between gap-4 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm">
+              <div class="flex flex-col gap-1">
+                <p class="text-xs text-slate-400">Average priority score</p>
+                <p class="font-mono text-3xl font-semibold tabular-nums text-emerald-400" id="stat-avg-score">0.0</p>
+                <p class="text-xs text-slate-400">Scale 0–100</p>
+              </div>
+              <span class="flex size-10 items-center justify-center rounded-lg ring-1 text-emerald-400 bg-emerald-500/10 ring-emerald-500/25">
+                <i data-lucide="gauge" class="size-5"></i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Charts Grid Row 1 -->
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <div class="xl:col-span-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-semibold text-white">Signal activity</h2>
+                  <p class="text-xs text-slate-400">Priority score and uncertainty for the latest 40 simulated samples.</p>
+                </div>
+                <span class="font-mono text-xs text-slate-400 flex items-center gap-1.5">
+                  <span id="chart-live-dot" class="size-2 rounded-full bg-slate-500"></span>
+                  <span id="chart-live-text">PAUSED</span>
+                </span>
+              </div>
+              <div class="h-64 w-full relative">
+                <canvas id="canvas-activity"></canvas>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Priority distribution</h2>
+                <p class="text-xs text-slate-400">Breakdown of all active simulated samples.</p>
+              </div>
+              <div class="h-48 w-full relative flex items-center justify-center">
+                <canvas id="canvas-distribution"></canvas>
+                <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                  <span class="font-mono text-2xl font-semibold text-white" id="donut-total">48</span>
+                  <span class="text-xs text-slate-400">samples</span>
+                </div>
+              </div>
+              <ul class="grid grid-cols-3 gap-2 text-center text-xs">
+                <li class="bg-[#132240]/60 p-2 rounded-lg">
+                  <span class="text-slate-400 flex items-center justify-center gap-1"><span class="size-2 rounded-full bg-rose-500"></span>High</span>
+                  <p class="font-mono text-base font-semibold text-white" id="dist-high">0</p>
+                </li>
+                <li class="bg-[#132240]/60 p-2 rounded-lg">
+                  <span class="text-slate-400 flex items-center justify-center gap-1"><span class="size-2 rounded-full bg-amber-500"></span>Med</span>
+                  <p class="font-mono text-base font-semibold text-white" id="dist-med">0</p>
+                </li>
+                <li class="bg-[#132240]/60 p-2 rounded-lg">
+                  <span class="text-slate-400 flex items-center justify-center gap-1"><span class="size-2 rounded-full bg-emerald-500"></span>Low</span>
+                  <p class="font-mono text-base font-semibold text-white" id="dist-low">0</p>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Bottom Grid Row 2 -->
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="text-sm font-semibold text-white">Review next</h2>
+                  <p class="text-xs text-slate-400">Top unreviewed samples in the adaptive priority queue.</p>
+                </div>
+                <button data-tab="queue" class="text-xs font-medium text-sky-400 hover:underline">Full queue</button>
+              </div>
+              <ul class="flex flex-col divide-y divide-[#1e3358]" id="top-priority-list">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Recent activity</h2>
+                <p class="text-xs text-slate-400">Engine flags, reviews and simulation events.</p>
+              </div>
+              <ol class="flex max-h-[20rem] flex-col gap-1 overflow-y-auto pr-1 custom-scroll" id="recent-activity-list">
+                <!-- Dynamically populated -->
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PAGE 2: SIGNAL ANALYSIS ================= -->
+        <div id="page-analysis" class="page-view hidden flex-col gap-6">
+          <div class="flex flex-col gap-2 max-w-3xl">
+            <p class="font-mono text-xs font-medium tracking-widest text-sky-400 uppercase">Engine inspection</p>
+            <h1 class="text-2xl font-semibold tracking-tight md:text-3xl text-white">Signal Analysis</h1>
+            <p class="text-sm leading-relaxed text-slate-400">
+              Scoring engine breakdown, live weight controls and feature distributions across simulated bands. Adjust weights to see how priority scores react immediately.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <!-- Weights Panel -->
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-4">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h2 class="text-sm font-semibold text-white">Scoring formula & weights</h2>
+                  <p class="text-xs text-slate-400">Rule-based scoring engine v1. Every number is visible and adjustable.</p>
+                </div>
+                <button id="btn-reset-weights" class="text-xs text-slate-400 hover:text-white flex items-center gap-1 border border-[#1e3358] px-2 py-1 rounded">
+                  <i data-lucide="rotate-ccw" class="size-3"></i>Reset
+                </button>
+              </div>
+
+              <div class="rounded-md border border-sky-500/25 bg-sky-500/5 px-3 py-2 font-mono text-xs text-slate-200">
+                score = 100 × Σ<sub>i</sub> (w<sub>i</sub> / Σw) × x<sub>i</sub>
+                <span class="block text-slate-400 text-[11px]">x = normalised feature (0–1), w = weight</span>
+              </div>
+
+              <div class="flex flex-col gap-4" id="weights-sliders-container">
+                <!-- Sliders dynamically populated -->
+              </div>
+
+              <p class="text-xs text-slate-400">
+                Changing a weight re-scores every sample instantly. Priority: High ≥ 55, Medium ≥ 35 or any flag rule fired, otherwise Low.
+              </p>
+            </div>
+
+            <!-- Feature Scatter Chart -->
+            <div class="xl:col-span-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Feature space</h2>
+                <p class="text-xs text-slate-400">Pattern variation vs. uncertainty for every simulated sample. Click a point to inspect it.</p>
+              </div>
+              <div class="h-80 w-full relative">
+                <canvas id="canvas-scatter"></canvas>
+              </div>
+              <div class="flex flex-wrap gap-4 text-xs text-slate-400">
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-rose-500"></span>High priority</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-amber-500"></span>Medium priority</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-full bg-emerald-500"></span>Low priority</span>
+                <span>Point radius = priority score</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Analysis Row 2 -->
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <div class="xl:col-span-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-4">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Latest analysis</h2>
+                <p class="text-xs text-slate-400">How each feature contributed to the score of the 10 most recent simulated samples.</p>
+              </div>
+              <div class="flex flex-wrap gap-4 text-xs text-slate-400">
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-sm bg-sky-400"></span>Signal strength</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-sm bg-amber-400"></span>Pattern variation</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-sm bg-emerald-400"></span>Uncertainty</span>
+                <span class="flex items-center gap-1.5"><span class="size-2 rounded-sm bg-rose-400"></span>Frequency deviation</span>
+              </div>
+              <ul class="flex flex-col gap-1" id="recent-breakdown-list">
+                <!-- Dynamically populated -->
+              </ul>
+            </div>
+
+            <!-- Band Occupancy -->
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Band occupancy</h2>
+                <p class="text-xs text-slate-400">Samples grouped by nearest simulated band.</p>
+              </div>
+              <div class="h-64 w-full relative">
+                <canvas id="canvas-bands"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PAGE 3: PRIORITY QUEUE ================= -->
+        <div id="page-queue" class="page-view hidden flex-col gap-6">
+          <div class="flex flex-col gap-2 max-w-3xl">
+            <p class="font-mono text-xs font-medium tracking-widest text-sky-400 uppercase">Triage management</p>
+            <h1 class="text-2xl font-semibold tracking-tight md:text-3xl text-white">Priority Queue</h1>
+            <p class="text-sm leading-relaxed text-slate-400">
+              Simulated electromagnetic signals ordered dynamically by rule-based priority score for human analyst triage. Click any row to inspect its features and recommended next action.
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-4 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div class="relative w-full lg:max-w-xs">
+                <i data-lucide="search" class="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400"></i>
+                <input id="queue-search-input" type="search" placeholder="Search ID, band, frequency, action…" class="h-9 w-full rounded-md border border-[#1e3358] bg-[#0b1428] pr-3 pl-8 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-sky-400">
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2 text-xs">
+                <select id="queue-filter-priority" class="h-9 rounded-md border border-[#1e3358] bg-[#0b1428] px-3 text-slate-200">
+                  <option value="All">All priorities</option>
+                  <option value="High">High</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Low">Low</option>
+                </select>
+
+                <select id="queue-filter-pattern" class="h-9 rounded-md border border-[#1e3358] bg-[#0b1428] px-3 text-slate-200">
+                  <option value="All">All patterns</option>
+                  <option value="Unusual">Unusual</option>
+                  <option value="Irregular">Irregular</option>
+                  <option value="Normal">Normal</option>
+                </select>
+
+                <label class="flex h-9 items-center gap-2 rounded-md border border-[#1e3358] px-2.5 text-slate-300 cursor-pointer">
+                  <input type="checkbox" id="queue-hide-reviewed" class="accent-sky-500">
+                  Hide reviewed
+                </label>
+              </div>
+            </div>
+
+            <p class="text-xs text-slate-400" id="queue-count-label">Showing 48 of 48 simulated samples.</p>
+
+            <div class="overflow-x-auto rounded-lg border border-[#1e3358]">
+              <table class="w-full min-w-[900px] text-sm text-left">
+                <thead class="bg-[#132240]/50 text-xs text-slate-400 border-b border-[#1e3358]">
+                  <tr>
+                    <th class="px-3 py-2.5 font-medium w-12 cursor-pointer hover:text-white" onclick="sortQueue('rank')">#</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('id')">Sample</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('frequencyMHz')">Frequency</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('strengthDbm')">Strength</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('patternVariation')">Pattern</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('uncertainty')">Uncertainty</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('score')">Score</th>
+                    <th class="px-3 py-2.5 font-medium cursor-pointer hover:text-white" onclick="sortQueue('priority')">Priority</th>
+                    <th class="px-3 py-2.5 font-medium">Recommended action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#1e3358]" id="queue-table-body">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PAGE 4: STRATEGY COMPARISON ================= -->
+        <div id="page-comparison" class="page-view hidden flex-col gap-6">
+          <div class="flex flex-col gap-2 max-w-3xl">
+            <p class="font-mono text-xs font-medium tracking-widest text-sky-400 uppercase">Empirical evaluation</p>
+            <h1 class="text-2xl font-semibold tracking-tight md:text-3xl text-white">Strategy Comparison</h1>
+            <p class="text-sm leading-relaxed text-slate-400">
+              Evaluating human reviewer efficiency under Fixed-Order (arrival order) review versus Adaptive AI-ranked review on the exact same synthetic dataset.
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-3 rounded-xl border border-sky-500/25 bg-sky-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="flex items-start gap-2 text-sm text-slate-200">
+              <i data-lucide="info" class="mt-0.5 size-4 shrink-0 text-sky-400"></i>
+              <span>Both methods use the <strong id="comp-sample-count">same 48 simulated samples</strong>. Timing is measured with <code class="font-mono text-xs bg-slate-800 px-1 py-0.5 rounded">performance.now()</code> averaged over 200 runs in your browser.</span>
+            </p>
+            <button id="btn-rerun-comparison" class="bg-sky-500 text-slate-950 font-semibold text-xs px-3 py-1.5 rounded-md hover:bg-sky-400 transition-colors shrink-0">
+              Re-run on current dataset
+            </button>
+          </div>
+
+          <!-- Metric Cards -->
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2" id="comparison-metric-cards">
+            <!-- Dynamically populated -->
+          </div>
+
+          <!-- What this run actually shows -->
+          <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 text-sm leading-relaxed shadow-sm">
+            <h2 class="mb-2 flex items-center gap-2 font-semibold text-white">
+              <i data-lucide="sparkles" class="size-4 text-sky-400"></i>What this run actually shows
+            </h2>
+            <ul class="flex list-disc flex-col gap-1.5 pl-5 text-slate-300" id="comparison-explanation-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+
+          <!-- Comparison Charts & Order Table -->
+          <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Cumulative flagged samples found</h2>
+                <p class="text-xs text-slate-400">How many flagged samples the reviewer has seen after N reviews. Steeper is better.</p>
+              </div>
+              <div class="h-72 w-full relative">
+                <canvas id="canvas-comparison-curve"></canvas>
+              </div>
+            </div>
+
+            <div class="rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5 shadow-sm flex flex-col gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-white">Flagged sample triage positions</h2>
+                <p class="text-xs text-slate-400">Comparison of review position for each flagged sample under fixed vs. adaptive ordering.</p>
+              </div>
+              <div class="max-h-72 overflow-y-auto custom-scroll">
+                <table class="w-full text-xs text-left">
+                  <thead class="bg-[#132240]/80 sticky top-0 text-slate-400">
+                    <tr>
+                      <th class="px-3 py-2 font-medium">Sample ID</th>
+                      <th class="px-3 py-2 font-medium">Score</th>
+                      <th class="px-3 py-2 font-medium">Adaptive Rank</th>
+                      <th class="px-3 py-2 font-medium">Fixed Order</th>
+                      <th class="px-3 py-2 font-medium">Advance</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#1e3358] font-mono" id="comparison-flagged-table">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PAGE 5: ABOUT ================= -->
+        <div id="page-about" class="page-view hidden flex-col gap-8 max-w-4xl">
+          <div class="flex flex-col gap-2">
+            <p class="font-mono text-xs font-medium tracking-widest text-sky-400 uppercase">Hackathon project</p>
+            <h1 class="text-3xl font-bold tracking-tight text-white md:text-4xl">About SmartScan AI</h1>
+            <p class="text-base text-slate-400 leading-relaxed">
+              Smart Scan Strategy for Electronic Warfare — an educational dashboard that shows how transparent prioritisation can help a human analyst decide which simulated signal samples to examine first.
+            </p>
+          </div>
+
+          <div class="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-slate-200">
+            <i data-lucide="triangle-alert" class="mt-0.5 size-5 shrink-0 text-amber-400"></i>
+            <p>SmartScan AI is an educational prototype using synthetic signal data. Unusual patterns are not proof of hostile activity. All recommendations require human review.</p>
+          </div>
+
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="flex flex-col gap-3 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5">
+              <div class="flex items-center gap-2 font-semibold text-white">
+                <i data-lucide="radar" class="size-4 text-sky-400"></i><h2>The problem</h2>
+              </div>
+              <p class="text-sm text-slate-400 leading-relaxed">
+                Signal analysts can face far more samples than they have time to inspect. Reviewing them strictly in arrival order means a small number of unusual samples may sit unnoticed behind hundreds of routine ones.
+              </p>
+            </div>
+
+            <div class="flex flex-col gap-3 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5">
+              <div class="flex items-center gap-2 font-semibold text-white">
+                <i data-lucide="sparkles" class="size-4 text-sky-400"></i><h2>Proposed solution</h2>
+              </div>
+              <p class="text-sm text-slate-400 leading-relaxed">
+                Score every sample with a transparent, rule-based formula, flag unusual patterns, and present a ranked review queue — so the analyst sees the most unusual samples first while always making the final call.
+              </p>
+            </div>
+          </div>
+
+          <!-- Working Principle -->
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-2 font-semibold text-white">
+              <i data-lucide="binary" class="size-4 text-sky-400"></i><h2>Working principle</h2>
+            </div>
+            <ol class="grid grid-cols-1 gap-3 md:grid-cols-5 text-xs">
+              <li class="flex flex-col gap-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-4">
+                <span class="font-mono text-xs font-semibold text-sky-400">STEP 01</span>
+                <h3 class="font-medium text-white">Simulate</h3>
+                <p class="text-slate-400">A seeded generator creates synthetic samples across three simulated bands. About 18% are deliberately given unusual traits so results can be checked against ground truth.</p>
+              </li>
+              <li class="flex flex-col gap-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-4">
+                <span class="font-mono text-xs font-semibold text-sky-400">STEP 02</span>
+                <h3 class="font-medium text-white">Normalise</h3>
+                <p class="text-slate-400">Signal strength, pattern variation, uncertainty and out-of-band frequency deviation are each scaled to a 0–1 feature.</p>
+              </li>
+              <li class="flex flex-col gap-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-4">
+                <span class="font-mono text-xs font-semibold text-sky-400">STEP 03</span>
+                <h3 class="font-medium text-white">Score</h3>
+                <p class="text-slate-400">A weighted sum of the four features produces a 0–100 priority score. The weights are visible and adjustable on the Signal Analysis page.</p>
+              </li>
+              <li class="flex flex-col gap-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-4">
+                <span class="font-mono text-xs font-semibold text-sky-400">STEP 04</span>
+                <h3 class="font-medium text-white">Flag & rank</h3>
+                <p class="text-slate-400">Threshold rules flag unusual patterns and explain why. Samples are sorted by score into the priority queue, which re-ranks every time new samples arrive.</p>
+              </li>
+              <li class="flex flex-col gap-2 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-4">
+                <span class="font-mono text-xs font-semibold text-sky-400">STEP 05</span>
+                <h3 class="font-medium text-white">Human review</h3>
+                <p class="text-slate-400">An analyst opens each sample, reads the explanation and recommended next step, and marks it reviewed. The system never takes action on its own.</p>
+              </li>
+            </ol>
+            <div class="rounded-lg border border-sky-500/25 bg-sky-500/5 p-3 text-center font-mono text-xs text-sky-400">
+              score = 100 × Σ (wᵢ / Σw) × xᵢ
+            </div>
+          </div>
+
+          <!-- Unique features & Tech stack -->
+          <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="flex flex-col gap-3 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5">
+              <div class="flex items-center gap-2 font-semibold text-white">
+                <i data-lucide="code-xml" class="size-4 text-sky-400"></i><h2>Technology stack</h2>
+              </div>
+              <dl class="flex flex-col divide-y divide-[#1e3358] text-sm">
+                <div class="py-2"><dt class="font-medium text-white">Next.js + TypeScript</dt><dd class="text-xs text-slate-400">App Router pages and typed engine</dd></div>
+                <div class="py-2"><dt class="font-medium text-white">Tailwind CSS</dt><dd class="text-xs text-slate-400">Dark navy and cyan defense-tech palette</dd></div>
+                <div class="py-2"><dt class="font-medium text-white">Recharts & Chart.js</dt><dd class="text-xs text-slate-400">Activity, distribution, scatter and comparison charts</dd></div>
+                <div class="py-2"><dt class="font-medium text-white">Lucide Icons</dt><dd class="text-xs text-slate-400">Consistent iconography across UI</dd></div>
+              </dl>
+            </div>
+
+            <div class="flex flex-col gap-3 rounded-xl border border-[#1e3358] bg-[#0f1d38]/80 p-5">
+              <div class="flex items-center gap-2 font-semibold text-white">
+                <i data-lucide="server" class="size-4 text-sky-400"></i><h2>Backend-ready architecture</h2>
+              </div>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                Scoring lives in <code class="font-mono text-xs text-white bg-slate-800 px-1 py-0.5 rounded">lib/signals/engine.ts</code> behind an <code class="font-mono text-xs text-white">AnalysisEngine</code> interface.
+              </p>
+              <p class="text-xs text-slate-400 leading-relaxed">
+                The <code class="font-mono text-xs text-white bg-slate-800 px-1 py-0.5 rounded">/api/analyze</code> route mirrors the JSON contract a Python/Flask service exposes, allowing any trained machine learning model to swap in without modifying the frontend.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Global Footer -->
+      <footer class="border-t border-[#1e3358] px-4 py-4 text-center text-xs text-slate-400 md:px-8">
+        SmartScan AI is an educational prototype using synthetic signal data. Unusual patterns are not proof of hostile activity. All recommendations require human review.
+      </footer>
+    </div>
+  </div>
+
+  <!-- Signal Details Drawer Overlay -->
+  <div id="drawer-overlay" class="fixed inset-0 z-50 flex justify-end hidden">
+    <div id="drawer-backdrop" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm cursor-pointer"></div>
+    <div role="dialog" class="relative flex h-full w-full max-w-lg flex-col border-l border-[#1e3358] bg-[#0d1a33] shadow-2xl p-6 overflow-y-auto custom-scroll z-10">
+      <div class="flex items-start justify-between border-b border-[#1e3358] pb-4">
+        <div>
+          <p class="font-mono text-xs tracking-widest text-sky-400 uppercase">Simulated sample</p>
+          <h2 id="drawer-sample-id" class="font-mono text-xl font-semibold text-white">SIM-0001</h2>
+        </div>
+        <button id="btn-close-drawer" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="size-5"></i>
+        </button>
+      </div>
+
+      <div class="py-4 flex flex-col gap-5 text-sm" id="drawer-content">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Standalone Simulation Engine Script -->
+  <script src="app.js"></script>
+</body>
+</html>
